@@ -1,0 +1,121 @@
+Activity Dataset
+========================================================
+Load the 'Activity Dataset' and necessary libraries
+```{r,echo=TRUE}
+library(ggplot2)
+library(dplyr)
+activity<-read.csv('activity.csv')
+```
+group by date
+```{r,echo=TRUE}
+comp_activity<-na.omit(activity)
+dailystep<-group_by(comp_activity,date)%>%summarize(step=sum(steps))
+dailystep
+```
+plot histogram
+```{r fig.height=7,fig.width=6,echo=TRUE}
+qplot(step, bins=30, data=dailystep)
+```
+
+
+mean of steps taken per day
+
+```{r,echo=TRUE}
+mean(dailystep$step)
+```
+
+median of steps taken per day
+```{r,echo=TRUE}
+median(dailystep$step)
+```
+group steps by interval
+
+```{r  fig.height=7,fig.width=6,echo=TRUE}
+mean_step_per_interval<-group_by(comp_activity, interval)%>%summarize(step=mean(steps))
+```
+
+Time series plot of interval against step
+
+```{r,echo=TRUE}
+plot<-ggplot(mean_step_per_interval, aes(y=step,x=interval))+geom_line()+labs(title='Interval againt time')
+plot
+```
+5-minute interval with maximum steps
+
+```{r,echo=TRUE}
+mean_step_per_interval$interval[which.max(mean_step_per_interval$step)]
+```
+##IMPUTING MISSING VALUES##
+=============================
+
+total missing values(NA)
+
+```{r,echo=TRUE}
+sum(is.na(activity))
+```
+
+Replace missing values with the mean steps for that 5-mins Interval
+
+
+```{r, echo=TRUE}
+act.copy<-activity
+for (i in seq(nrow(act.copy))) {
+  if (is.na(act.copy[i,1])) {
+    intvl<-act.copy[i,3]
+    act.copy[i,1]<-round(subset(mean_step_per_interval,interval==intvl,step),3)
+  }
+}
+sum(is.na(act.copy))
+dim(act.copy)
+```
+
+Histogram of total steps taken after imputation
+
+```{r fig.height=7,fig.width=6}
+steps.day<-group_by(act.copy,date)%>%summarize(steps.per.day=sum(steps))
+head(steps.day,8)
+qplot(steps.per.day,  data=steps.day)
+```
+
+##Mean Steps per day after imputation##
+```{r,echo=TRUE}
+mean(steps.day$steps.per.day)
+```
+
+##median steps per day after imputation##
+```{r,echo=TRUE}
+median(steps.day$steps.per.day)
+```
+
+**Convert date variable using as.Date function
+```{r,echo=TRUE}
+act.copy$day<-weekdays(as.Date(act.copy$date,'%Y-%m-%d'))
+head(act.copy)
+```
+
+**Group days into weekdays and weekends**
+
+```{r,echo=TRUE}
+act.copy$weektype<-ifelse(act.copy$day %in% c('Saturday','Sunday'),'weekend','weekday')
+act.copy$weektype<-as.factor(act.copy$weektype)
+head(act.copy,10)
+```
+
+**Calculate mean daily step per 5-min interrval for all days**
+
+```{r,echo=TRUE}
+r<-act.copy%>%group_by(interval,weektype)%>%summarize(mean.step=mean(steps))
+class(act.copy$weektype)
+head(r)
+```
+
+*PANEL PLOT OF WEEKEND AND WEEKDAY MEAN STEPS*
+
+```{r fig.height=6,fig.width=10,echo=TRUE}
+p<-ggplot(r, aes(x=interval,y=mean.step))+geom_line()+facet_grid(.~weektype)
+p
+```
+
+
+
+
